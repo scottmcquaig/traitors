@@ -1,84 +1,205 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { jwtDecode } from 'jwt-decode';
 
 /**
- * Protected routes that require authentication
+ * Session cookie name (Firebase convention)
+ */
+const SESSION_COOKIE_NAME = '__session';
+
+/**
+ * Protected route prefixes that require authentication
  */
 const PROTECTED_ROUTES = ['/dashboard', '/admin', '/leagues', '/profile'];
 
 /**
- * Admin-only routes
+ * Admin-only route prefixes
  */
 const ADMIN_ROUTES = ['/admin'];
 
 /**
- * Auth cookie name
- * TODO: Update this to match your Firebase auth cookie name
+ * Public routes that don't require authentication
  */
-const AUTH_COOKIE_NAME = 'firebase-auth-token';
+const PUBLIC_ROUTES = ['/', '/login', '/invite', '/api/auth'];
 
 /**
- * Check if a path starts with any of the protected prefixes
+ * Interface for decoded Firebase ID token claims
  */
-function isProtectedRoute(pathname: string): boolean {
-  return PROTECTED_ROUTES.some(
+interface FirebaseTokenClaims {
+  iss: string;
+  aud: string;
+  auth_time: number;
+  user_id: string;
+  sub: string;
+  iat: number;
+  exp: number;
+  email?: string;
+  email_verified?: boolean;
+  admin?: boolean;
+  role?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Check if a path starts with any of the given prefixes
+ */
+function matchesRoute(pathname: string, routes: string[]): boolean {
+  return routes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
+}
+
+/**
+ * Check if the path is a public route
+ */
+function isPublicRoute(pathname: string): boolean {
+  return matchesRoute(pathname, PUBLIC_ROUTES);
+}
+
+/**
+ * Check if a path requires authentication
+ */
+function isProtectedRoute(pathname: string): boolean {
+  return matchesRoute(pathname, PROTECTED_ROUTES);
 }
 
 /**
  * Check if a path is an admin route
  */
 function isAdminRoute(pathname: string): boolean {
-  return ADMIN_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
-  );
+  return matchesRoute(pathname, ADMIN_ROUTES);
+}
+
+/**
+ * Validate and decode the session token
+ * Returns null if token is invalid or expired
+ */
+function validateToken(token: string): FirebaseTokenClaims | null {
+  try {
+    const decoded = jwtDecode<FirebaseTokenClaims>(token);
+
+    // Check if token is expired
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (decoded.exp && decoded.exp < currentTime) {
+      return null;
+    }
+
+    // Basic validation - ensure required fields exist
+    if (!decoded.sub || !decoded.user_id) {
+      return null;
+    }
+
+    return decoded;
+  } catch (error) {
+    // Token is malformed or invalid
+    return null;
+  }
+}
+
+/**
+ * Check if user has admin role from token claims
+ */
+function isAdmin(claims: FirebaseTokenClaims): boolean {
+  return claims.admin === true || claims.role === 'admin';
+}
+
+/**
+ * Add security headers to response
+ */
+function addSecurityHeaders(response: NextResponse): NextResponse {
+  // Prevent clickjacking
+  response.headers.set('X-Frame-Options', 'DENY');
+  // Prevent MIME type sniffing
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  // Enable XSS protection
+  response.headers.set('X-XSS-Protection', '1; mode=block');
+  // Referrer policy
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  return response;
+}
+
+/**
+ * Create redirect response to login page with return URL
+ */
+function redirectToLogin(request: NextRequest): NextResponse {
+  const loginUrl = new URL('/login', request.url);
+  const returnUrl = request.nextUrl.pathname + request.nextUrl.search;
+
+  // Only add returnUrl if it's not the login page itself
+  if (returnUrl !== '/login') {
+    loginUrl.searchParams.set('returnUrl', returnUrl);
+  }
+
+  return addSecurityHeaders(NextResponse.redirect(loginUrl));
+}
+
+/**
+ * Create redirect response to dashboard (for non-admin users accessing admin routes)
+ */
+function redirectToDashboard(request: NextRequest): NextResponse {
+  const dashboardUrl = new URL('/dashboard', request.url);
+  return addSecurityHeaders(NextResponse.redirect(dashboardUrl));
 }
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // TODO: Get auth token from cookie
-  // The cookie should be set by Firebase Auth or your auth solution
-  const authToken = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-
-  // Check if route is protected
-  if (isProtectedRoute(pathname)) {
-    if (!authToken) {
-      // TODO: Optionally verify the token is valid using Firebase Admin SDK
-      // For now, just check if the cookie exists
-      
-      // Redirect to login with return URL
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('returnUrl', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    // TODO: For admin routes, verify user has admin role
-    // This requires decoding the token and checking claims
-    // Example with Firebase Admin:
-    //
-    // if (isAdminRoute(pathname)) {
-    //   const decodedToken = await verifyIdToken(authToken);
-    //   if (!decodedToken.admin) {
-    //     return NextResponse.redirect(new URL('/unauthorized', request.url));
-    //   }
-    // }
-
-    if (isAdminRoute(pathname)) {
-      // TODO: Implement admin role check
-      // For now, allow access if authenticated
-      console.log('TODO: Implement admin role verification for', pathname);
-    }
+  // Skip middleware for public routes
+  if (isPublicRoute(pathname)) {
+    return addSecurityHeaders(NextResponse.next());
   }
 
-  // Allow the request to continue
-  return NextResponse.next();
+  // Get session cookie
+  const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+
+  // Check if route requires authentication
+  if (isProtectedRoute(pathname)) {
+    // No session cookie - redirect to login
+    if (!sessionCookie) {
+      return redirectToLogin(request);
+    }
+
+    // Validate the token
+    const claims = validateToken(sessionCookie);
+
+    if (!claims) {
+      // Invalid or expired token - clear cookie and redirect to login
+      const response = redirectToLogin(request);
+      response.cookies.delete(SESSION_COOKIE_NAME);
+      return response;
+    }
+
+    // Check admin access for admin routes
+    if (isAdminRoute(pathname)) {
+      if (!isAdmin(claims)) {
+        // User is authenticated but not an admin - redirect to dashboard
+        return redirectToDashboard(request);
+      }
+    }
+
+    // User is authenticated (and admin if required) - allow access
+    const response = addSecurityHeaders(NextResponse.next());
+
+    // Add user info to request headers for downstream use
+    response.headers.set('x-user-id', claims.user_id);
+    if (claims.email) {
+      response.headers.set('x-user-email', claims.email);
+    }
+    if (isAdmin(claims)) {
+      response.headers.set('x-user-admin', 'true');
+    }
+
+    return response;
+  }
+
+  // Non-protected route - allow access
+  return addSecurityHeaders(NextResponse.next());
 }
 
 /**
  * Configure which paths the middleware runs on
- * Excludes static files, API routes, and Next.js internals
+ * Excludes static files, API routes (except auth), and Next.js internals
  */
 export const config = {
   matcher: [
@@ -88,8 +209,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder files (public assets)
-     * - api routes (handled separately)
+     * - api routes except /api/auth (handled by middleware for auth routes)
      */
-    '/((?!_next/static|_next/image|favicon.ico|public/|api/).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
   ],
 };

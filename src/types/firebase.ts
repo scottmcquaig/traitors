@@ -150,9 +150,45 @@ export const COLLECTIONS = {
   CONTESTANTS: 'contestants',
   DRAFT_PICKS: 'draftPicks',
   EPISODES: 'episodes',
+  INVITE_TOKENS: 'inviteTokens',
 } as const;
 
 /**
  * Type for collection names
  */
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];
+
+/**
+ * InviteToken document stored in the 'inviteTokens' collection
+ * Used to invite new users to the application
+ */
+export interface InviteToken {
+  /** Unique identifier for the invite token document */
+  id: string;
+  /** Email address the invite was sent to */
+  email: string;
+  /** Unique UUID token for the invite link */
+  token: string;
+  /** UID of the admin who created this invite */
+  createdBy: string;
+  /** Timestamp when the invite was created */
+  createdAt: Timestamp;
+  /** Timestamp when the invite expires */
+  expiresAt: Timestamp;
+  /** Timestamp when the invite was used (optional) */
+  usedAt?: Timestamp;
+  /** UID of the user who used this invite (optional) */
+  usedBy?: string;
+}
+
+/**
+ * Type for creating a new InviteToken (without auto-generated fields)
+ */
+export type CreateInviteTokenData = Omit<InviteToken, 'id' | 'createdAt'> & {
+  createdAt?: Timestamp;
+};
+
+/**
+ * Type for updating an InviteToken (all fields optional except id)
+ */
+export type UpdateInviteTokenData = Partial<Omit<InviteToken, 'id' | 'token' | 'createdAt' | 'createdBy'>>;

@@ -1,4 +1,4 @@
 // Hooks barrel export
-// Add hook exports here as they are created
 
-export {};
+export { useRequireAuth } from './useRequireAuth';
+export { useAdmin, clearAdminCache } from './useAdmin';
