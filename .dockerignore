@@ -1,0 +1,82 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+.next
+out
+build
+dist
+
+# Version control
+.git
+.gitignore
+
+# Environment files (use build args or runtime injection)
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+
+# Keep .env.example for reference (negation)
+!.env.example
+
+# Documentation
+*.md
+README*
+CHANGELOG*
+LICENSE*
+docs/
+
+# IDE and editor files
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage
+.nyc_output
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+__tests__
+__mocks__
+jest.config.*
+cypress
+.cypress
+
+# Debug and logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Docker files (avoid recursive builds)
+Dockerfile*
+docker-compose*
+.docker
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+.circleci
+
+# Misc
+*.tgz
+*.tar.gz
+.husky
+.eslintcache
+.turbo
