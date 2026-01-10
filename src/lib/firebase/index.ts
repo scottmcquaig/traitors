@@ -46,3 +46,19 @@ export type { CustomClaims } from './claims';
 
 // User operations (server-side only)
 export { createUser, getUserByUid, getUserByEmail } from './users';
+
+// Contestant operations (server-side only)
+export {
+  createContestant,
+  getContestantById,
+  getContestantsByLeague,
+  getActiveContestants,
+  updateContestant,
+  eliminateContestant,
+  revealTraitor,
+  setWinner,
+  deleteContestant,
+  bulkCreateContestants,
+  verifyContestantLeague,
+} from './contestants';
+export type { BulkContestantData } from './contestants';

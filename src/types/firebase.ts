@@ -19,6 +19,11 @@ export interface User {
 }
 
 /**
+ * Draft status for a league
+ */
+export type DraftStatus = 'pending' | 'in_progress' | 'completed';
+
+/**
  * League document stored in the 'leagues' collection
  */
 export interface League {
@@ -32,7 +37,27 @@ export interface League {
   adminUid: string;
   /** Timestamp when the league was created */
   createdAt: Timestamp;
+  /** Current status of the draft */
+  draftStatus: DraftStatus;
+  /** Array of player UIDs in draft order */
+  draftOrder: string[];
+  /** Maximum number of contestants each player can draft */
+  rosterSize: number;
+  /** Current pick number during an active draft (1-indexed) */
+  currentPick?: number;
+  /** Array of player UIDs who have been invited/joined the league */
+  playerUids: string[];
 }
+
+/**
+ * Status of a contestant in the show
+ */
+export type ContestantStatus = 'active' | 'eliminated' | 'winner' | 'traitor_revealed';
+
+/**
+ * Role of a contestant in the show
+ */
+export type ContestantRole = 'faithful' | 'traitor' | 'unknown';
 
 /**
  * Contestant document stored in the 'contestants' collection
@@ -41,12 +66,22 @@ export interface League {
 export interface Contestant {
   /** Unique identifier for the contestant */
   id: string;
+  /** ID of the league this contestant belongs to */
+  leagueId: string;
   /** Contestant's full name */
   name: string;
   /** Current status of the contestant in the show */
-  status: 'active' | 'eliminated' | 'winner';
+  status: ContestantStatus;
   /** URL to the contestant's profile image (optional) */
   imageUrl?: string;
+  /** Role of the contestant in the show (optional, may be revealed later) */
+  role?: ContestantRole;
+  /** Episode number when the contestant was eliminated (optional) */
+  eliminatedEpisode?: number;
+  /** Timestamp when the contestant was created */
+  createdAt: Timestamp;
+  /** Timestamp when the contestant was last updated */
+  updatedAt: Timestamp;
 }
 
 /**
@@ -66,6 +101,8 @@ export interface DraftPick {
   pickOrder: number;
   /** Round number of the draft (1-based) */
   round: number;
+  /** Timestamp when the pick was made */
+  createdAt: Timestamp;
 }
 
 /**
@@ -96,20 +133,32 @@ export type CreateUserData = Omit<User, 'createdAt'> & {
 
 /**
  * Type for creating a new League (without auto-generated fields)
+ * Provides sensible defaults for optional fields
  */
-export type CreateLeagueData = Omit<League, 'id' | 'createdAt'> & {
+export type CreateLeagueData = Omit<League, 'id' | 'createdAt' | 'draftStatus' | 'draftOrder' | 'playerUids' | 'currentPick'> & {
   createdAt?: Timestamp;
+  draftStatus?: DraftStatus;
+  draftOrder?: string[];
+  playerUids?: string[];
+  currentPick?: number;
 };
 
 /**
- * Type for creating a new Contestant
+ * Type for creating a new Contestant (without auto-generated fields)
+ * leagueId is required and passed separately in the create function
  */
-export type CreateContestantData = Omit<Contestant, 'id'>;
+export type CreateContestantData = Omit<Contestant, 'id' | 'leagueId' | 'createdAt' | 'updatedAt'> & {
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+};
 
 /**
- * Type for creating a new DraftPick
+ * Type for creating a new DraftPick (without auto-generated fields)
+ * leagueId is required and passed separately in the create function
  */
-export type CreateDraftPickData = Omit<DraftPick, 'id'>;
+export type CreateDraftPickData = Omit<DraftPick, 'id' | 'leagueId' | 'createdAt'> & {
+  createdAt?: Timestamp;
+};
 
 /**
  * Type for creating a new Episode
@@ -124,12 +173,12 @@ export type UpdateUserData = Partial<Omit<User, 'uid' | 'createdAt'>>;
 /**
  * Type for updating a League (all fields optional except id)
  */
-export type UpdateLeagueData = Partial<Omit<League, 'id' | 'createdAt'>>;
+export type UpdateLeagueData = Partial<Omit<League, 'id' | 'createdAt' | 'adminUid'>>;
 
 /**
- * Type for updating a Contestant (all fields optional except id)
+ * Type for updating a Contestant (all fields optional except id, leagueId, timestamps)
  */
-export type UpdateContestantData = Partial<Omit<Contestant, 'id'>>;
+export type UpdateContestantData = Partial<Omit<Contestant, 'id' | 'leagueId' | 'createdAt' | 'updatedAt'>>;
 
 /**
  * Type for updating a DraftPick (all fields optional except id)
