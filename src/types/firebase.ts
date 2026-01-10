@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import { ScoringCategory } from '@/constants';
 
 /**
  * User document stored in the 'users' collection
@@ -106,6 +107,17 @@ export interface DraftPick {
 }
 
 /**
+ * Score breakdown for a single contestant in an episode
+ * Tracks points earned in each scoring category
+ */
+export interface EpisodeContestantScore {
+  /** Total points earned in this episode */
+  total: number;
+  /** Points breakdown by scoring category */
+  breakdown: Partial<Record<ScoringCategory, number>>;
+}
+
+/**
  * Episode document stored in the 'episodes' collection
  * Represents a single episode with scoring information
  */
@@ -115,13 +127,17 @@ export interface Episode {
   /** ID of the league this episode belongs to */
   leagueId: string;
   /** Episode number in the season (1-based) */
-  number: number;
-  /** Title of the episode */
-  title: string;
+  episodeNumber: number;
   /** Air date of the episode */
-  airDate: Timestamp;
+  airDate: Date | Timestamp;
   /** Scores for each contestant in this episode, keyed by contestant ID */
-  scores: Record<string, number>;
+  scores: Record<string, EpisodeContestantScore>;
+  /** Optional notes about the episode */
+  notes?: string;
+  /** Timestamp when the episode was created */
+  createdAt: Timestamp;
+  /** Timestamp when the episode was last updated */
+  updatedAt?: Timestamp;
 }
 
 /**
@@ -161,9 +177,12 @@ export type CreateDraftPickData = Omit<DraftPick, 'id' | 'leagueId' | 'createdAt
 };
 
 /**
- * Type for creating a new Episode
+ * Type for creating a new Episode (without auto-generated fields)
  */
-export type CreateEpisodeData = Omit<Episode, 'id'>;
+export type CreateEpisodeData = Omit<Episode, 'id' | 'createdAt' | 'updatedAt'> & {
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+};
 
 /**
  * Type for updating a User (all fields optional except uid)
@@ -186,9 +205,9 @@ export type UpdateContestantData = Partial<Omit<Contestant, 'id' | 'leagueId' | 
 export type UpdateDraftPickData = Partial<Omit<DraftPick, 'id'>>;
 
 /**
- * Type for updating an Episode (all fields optional except id)
+ * Type for updating an Episode (all fields optional except id, leagueId, timestamps)
  */
-export type UpdateEpisodeData = Partial<Omit<Episode, 'id'>>;
+export type UpdateEpisodeData = Partial<Omit<Episode, 'id' | 'leagueId' | 'createdAt' | 'updatedAt'>>;
 
 /**
  * Collection names as constants for type-safe collection references
@@ -200,6 +219,7 @@ export const COLLECTIONS = {
   DRAFT_PICKS: 'draftPicks',
   EPISODES: 'episodes',
   INVITE_TOKENS: 'inviteTokens',
+  SCORE_HISTORY: 'scoreHistory',
 } as const;
 
 /**
@@ -241,3 +261,52 @@ export type CreateInviteTokenData = Omit<InviteToken, 'id' | 'createdAt'> & {
  * Type for updating an InviteToken (all fields optional except id)
  */
 export type UpdateInviteTokenData = Partial<Omit<InviteToken, 'id' | 'token' | 'createdAt' | 'createdBy'>>;
+
+/**
+ * ScoreHistory document stored in the 'scoreHistory' collection
+ * Audit log entry for score changes
+ */
+export interface ScoreHistory {
+  /** Unique identifier for this history entry */
+  id: string;
+  /** ID of the episode the score belongs to */
+  episodeId: string;
+  /** ID of the league the score belongs to */
+  leagueId: string;
+  /** ID of the contestant whose score changed */
+  contestantId: string;
+  /** UID of the admin who made the change */
+  adminUid: string;
+  /** Previous score value (null for new scores) */
+  previousValue: EpisodeContestantScore | null;
+  /** New score value (null for deletions) */
+  newValue: EpisodeContestantScore | null;
+  /** Type of change made */
+  changeType: 'create' | 'update' | 'delete';
+  /** Timestamp when the change was made */
+  timestamp: Timestamp;
+  /** Optional notes about the change */
+  notes?: string;
+}
+
+/**
+ * Type for creating a new ScoreHistory entry (without auto-generated fields)
+ */
+export interface CreateScoreHistoryData {
+  /** ID of the episode the score belongs to */
+  episodeId: string;
+  /** ID of the league the score belongs to */
+  leagueId: string;
+  /** ID of the contestant whose score changed */
+  contestantId: string;
+  /** UID of the admin who made the change */
+  adminUid: string;
+  /** Previous score value (null for new scores) */
+  previousValue: EpisodeContestantScore | null;
+  /** New score value (null for deletions) */
+  newValue: EpisodeContestantScore | null;
+  /** Type of change made */
+  changeType: 'create' | 'update' | 'delete';
+  /** Optional notes about the change */
+  notes?: string;
+}

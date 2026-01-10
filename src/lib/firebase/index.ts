@@ -62,3 +62,14 @@ export {
   verifyContestantLeague,
 } from './contestants';
 export type { BulkContestantData } from './contestants';
+
+// Score history operations (server-side only)
+export {
+  logScoreChange,
+  getScoreHistoryByEpisode,
+  getScoreHistoryByLeague,
+  getScoreHistoryByAdmin,
+  getScoreHistoryByContestant,
+  getRecentScoreChanges,
+  trackScoreUpdate,
+} from './score-history';
