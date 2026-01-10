@@ -214,29 +214,56 @@ export default async function LeaguePage({ params }: PageProps) {
               <p className="mt-1 text-gray-600 dark:text-gray-400">{league.season}</p>
             </div>
 
-            {/* Draft button */}
-            {league.draftStatus === 'in_progress' && (
-              <Link
-                href={`/dashboard/league/${leagueId}/draft`}
-                className="inline-flex items-center px-6 py-3 border border-transparent rounded-md text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-colors"
-              >
-                <svg
-                  className="w-5 h-5 mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
+            {/* Action buttons */}
+            <div className="flex flex-wrap gap-3">
+              {/* Standings button - always show when draft is completed */}
+              {league.draftStatus === 'completed' && (
+                <Link
+                  href={`/dashboard/league/${leagueId}/standings`}
+                  className="inline-flex items-center px-6 py-3 border border-transparent rounded-md text-base font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 shadow-sm transition-colors"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                  />
-                </svg>
-                Go to Draft Board
-              </Link>
-            )}
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  View Standings
+                </Link>
+              )}
+
+              {/* Draft button */}
+              {league.draftStatus === 'in_progress' && (
+                <Link
+                  href={`/dashboard/league/${leagueId}/draft`}
+                  className="inline-flex items-center px-6 py-3 border border-transparent rounded-md text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-colors"
+                >
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                  Go to Draft Board
+                </Link>
+              )}
+            </div>
           </div>
         </header>
 
