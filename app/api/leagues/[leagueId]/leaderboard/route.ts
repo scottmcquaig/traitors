@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminAuth } from '@/lib/firebase/admin';
+import { getCurrentUser } from '@/lib/auth/session';
 import { checkLeagueAccess } from '@/lib/firebase/leagues';
 import {
   generateLeaderboard,
@@ -15,34 +15,6 @@ interface RouteParams {
   params: Promise<{
     leagueId: string;
   }>;
-}
-
-/**
- * Extracts and verifies the Firebase ID token from the Authorization header
- * @param request - The incoming request
- * @returns The decoded token with user info, or null if invalid
- */
-async function verifyAuthToken(request: NextRequest) {
-  const authHeader = request.headers.get('Authorization');
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const idToken = authHeader.split('Bearer ')[1];
-
-  if (!idToken) {
-    return null;
-  }
-
-  try {
-    const auth = getAdminAuth();
-    const decodedToken = await auth.verifyIdToken(idToken);
-    return decodedToken;
-  } catch (error) {
-    console.error('Error verifying ID token:', error);
-    return null;
-  }
 }
 
 /**
@@ -79,18 +51,18 @@ export async function GET(
       );
     }
 
-    // Verify authentication
-    const decodedToken = await verifyAuthToken(request);
+    // Verify authentication using session cookie
+    const session = await getCurrentUser();
 
-    if (!decodedToken) {
+    if (!session.authenticated) {
       return NextResponse.json(
-        { error: 'Unauthorized', message: 'Valid authentication token required' },
+        { error: 'Unauthorized', message: 'Authentication required' },
         { status: 401 }
       );
     }
 
     // Check access to the league
-    const accessCheck = await checkLeagueAccess(leagueId, decodedToken.uid);
+    const accessCheck = await checkLeagueAccess(leagueId, session.user.uid);
 
     if (!accessCheck.league) {
       return NextResponse.json(

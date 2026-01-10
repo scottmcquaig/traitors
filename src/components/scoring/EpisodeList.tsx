@@ -2,6 +2,9 @@
 
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils/cn';
+import type { UserPermissions } from '@/lib/permissions';
+import { createAdminPermissions } from '@/lib/permissions';
+import { ReadOnlyBanner } from '@/components/guards';
 import { EpisodeForm } from './EpisodeForm';
 import { ScoreEntryForm } from './ScoreEntryForm';
 import { ScoreSummary } from './ScoreSummary';
@@ -38,16 +41,27 @@ export interface EpisodeListProps {
   episodes: SerializedEpisode[];
   /** List of contestants */
   contestants: SerializedContestant[];
+  /** User permissions for controlling edit access (defaults to admin) */
+  userPermissions?: UserPermissions;
 }
 
 type ViewMode = 'list' | 'create' | 'edit' | 'scores' | 'summary';
 
 /**
  * EpisodeList - Client component for managing episodes in a league
- * Shows list of episodes with options to add, edit, delete, and manage scores
+ * Shows list of episodes with options to add, edit, delete, and manage scores.
+ * Edit controls are hidden for users without edit permission.
  */
-export function EpisodeList({ leagueId, episodes: initialEpisodes, contestants }: EpisodeListProps) {
+export function EpisodeList({
+  leagueId,
+  episodes: initialEpisodes,
+  contestants,
+  userPermissions = createAdminPermissions(),
+}: EpisodeListProps) {
   const [episodes, setEpisodes] = useState<SerializedEpisode[]>(initialEpisodes);
+
+  // Determine if user can edit based on permissions
+  const canEdit = userPermissions.canEdit;
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedEpisode, setSelectedEpisode] = useState<SerializedEpisode | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -358,6 +372,7 @@ export function EpisodeList({ leagueId, episodes: initialEpisodes, contestants }
         <ScoreSummary
           episode={selectedEpisode}
           contestants={contestants}
+          userPermissions={userPermissions}
           onEdit={() => setViewMode('scores')}
           onClose={() => {
             setViewMode('list');
@@ -371,6 +386,9 @@ export function EpisodeList({ leagueId, episodes: initialEpisodes, contestants }
   // Default list view
   return (
     <div className="space-y-4">
+      {/* Read-only banner for non-edit users */}
+      <ReadOnlyBanner show={!canEdit} />
+
       {/* Error message */}
       {error && (
         <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
@@ -403,18 +421,20 @@ export function EpisodeList({ leagueId, episodes: initialEpisodes, contestants }
         </div>
       )}
 
-      {/* Header with Add button */}
+      {/* Header with Add button (only for users with edit permission) */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Episodes</h2>
-        <button
-          onClick={() => setViewMode('create')}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add Episode
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setViewMode('create')}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Episode
+          </button>
+        )}
       </div>
 
       {/* Episodes list */}
@@ -457,92 +477,106 @@ export function EpisodeList({ leagueId, episodes: initialEpisodes, contestants }
 
                   {/* Actions */}
                   <div className="flex items-center gap-2">
-                    {/* View/Edit Scores */}
-                    <button
-                      onClick={() => {
-                        setSelectedEpisode(episode);
-                        setViewMode(hasScores ? 'summary' : 'scores');
-                      }}
-                      className={cn(
-                        'inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                        hasScores
-                          ? 'text-green-700 bg-green-100 hover:bg-green-200 dark:text-green-300 dark:bg-green-900/30 dark:hover:bg-green-900/50'
-                          : 'text-blue-700 bg-blue-100 hover:bg-blue-200 dark:text-blue-300 dark:bg-blue-900/30 dark:hover:bg-blue-900/50'
-                      )}
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        {hasScores ? (
+                    {/* View Scores (always visible) / Enter Scores (edit permission only) */}
+                    {hasScores ? (
+                      <button
+                        onClick={() => {
+                          setSelectedEpisode(episode);
+                          setViewMode('summary');
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-green-700 bg-green-100 hover:bg-green-200 dark:text-green-300 dark:bg-green-900/30 dark:hover:bg-green-900/50"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
                             d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                           />
-                        ) : (
+                        </svg>
+                        View Scores
+                      </button>
+                    ) : canEdit ? (
+                      <button
+                        onClick={() => {
+                          setSelectedEpisode(episode);
+                          setViewMode('scores');
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-blue-700 bg-blue-100 hover:bg-blue-200 dark:text-blue-300 dark:bg-blue-900/30 dark:hover:bg-blue-900/50"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
                             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                           />
-                        )}
-                      </svg>
-                      {hasScores ? 'View Scores' : 'Enter Scores'}
-                    </button>
-
-                    {/* Edit Episode */}
-                    <button
-                      onClick={() => {
-                        setSelectedEpisode(episode);
-                        setViewMode('edit');
-                      }}
-                      className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                      title="Edit episode"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                        />
-                      </svg>
-                    </button>
-
-                    {/* Delete Episode */}
-                    <button
-                      onClick={() => handleDeleteEpisode(episode.id)}
-                      disabled={isDeleting === episode.id}
-                      className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
-                      title="Delete episode"
-                    >
-                      {isDeleting === episode.id ? (
-                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          />
                         </svg>
-                      ) : (
+                        Enter Scores
+                      </button>
+                    ) : (
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium text-gray-500 bg-gray-100 dark:text-gray-400 dark:bg-gray-700">
+                        No scores
+                      </span>
+                    )}
+
+                    {/* Edit Episode - only for users with edit permission */}
+                    {canEdit && (
+                      <button
+                        onClick={() => {
+                          setSelectedEpisode(episode);
+                          setViewMode('edit');
+                        }}
+                        className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        title="Edit episode"
+                      >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
                           />
                         </svg>
-                      )}
-                    </button>
+                      </button>
+                    )}
+
+                    {/* Delete Episode - only for users with edit permission */}
+                    {canEdit && (
+                      <button
+                        onClick={() => handleDeleteEpisode(episode.id)}
+                        disabled={isDeleting === episode.id}
+                        className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                        title="Delete episode"
+                      >
+                        {isDeleting === episode.id ? (
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </li>
               );
@@ -568,17 +602,21 @@ export function EpisodeList({ leagueId, episodes: initialEpisodes, contestants }
             No episodes yet
           </h3>
           <p className="mt-2 text-gray-500 dark:text-gray-400">
-            Get started by adding the first episode.
+            {canEdit
+              ? 'Get started by adding the first episode.'
+              : 'No episodes have been added to this league yet.'}
           </p>
-          <button
-            onClick={() => setViewMode('create')}
-            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Episode
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setViewMode('create')}
+              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Episode
+            </button>
+          )}
         </div>
       )}
     </div>

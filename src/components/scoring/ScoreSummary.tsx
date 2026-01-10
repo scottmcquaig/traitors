@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils/cn';
+import type { UserPermissions } from '@/lib/permissions';
+import { createAdminPermissions } from '@/lib/permissions';
 import type { SerializedEpisode, SerializedContestant } from './EpisodeList';
 
 export interface ScoreSummaryProps {
@@ -9,6 +11,8 @@ export interface ScoreSummaryProps {
   episode: SerializedEpisode;
   /** List of contestants */
   contestants: SerializedContestant[];
+  /** User permissions for controlling edit access (defaults to admin) */
+  userPermissions?: UserPermissions;
   /** Callback to edit scores */
   onEdit: () => void;
   /** Callback to close summary */
@@ -17,9 +21,18 @@ export interface ScoreSummaryProps {
 
 /**
  * ScoreSummary - Display score breakdown for an episode
- * Shows each contestant's scores sorted by total points
+ * Shows each contestant's scores sorted by total points.
+ * Edit button is only shown for users with edit permission.
  */
-export function ScoreSummary({ episode, contestants, onEdit, onClose }: ScoreSummaryProps) {
+export function ScoreSummary({
+  episode,
+  contestants,
+  userPermissions = createAdminPermissions(),
+  onEdit,
+  onClose,
+}: ScoreSummaryProps) {
+  // Determine if user can edit based on permissions
+  const canEdit = userPermissions.canEdit;
   /**
    * Get contestant data with scores, sorted by score descending
    */
@@ -270,24 +283,26 @@ export function ScoreSummary({ episode, contestants, onEdit, onClose }: ScoreSum
         >
           Close
         </button>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="inline-flex items-center px-4 py-2 text-sm font-medium text-white
-                     bg-purple-600 border border-transparent rounded-lg
-                     hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500
-                     transition-colors"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-            />
-          </svg>
-          Edit Scores
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white
+                       bg-purple-600 border border-transparent rounded-lg
+                       hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500
+                       transition-colors"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+              />
+            </svg>
+            Edit Scores
+          </button>
+        )}
       </div>
     </div>
   );
