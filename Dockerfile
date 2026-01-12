@@ -45,6 +45,9 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy application source code
 COPY . .
 
+# Ensure public directory exists for downstream copy
+RUN mkdir -p /app/public
+
 # Set build-time environment variables
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_APP_VERSION=${VERSION}
