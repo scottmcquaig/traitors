@@ -80,3 +80,36 @@ docker-compose*
 .husky
 .eslintcache
 .turbo
+
+# Storybook
+.storybook
+storybook-static
+
+# Playwright
+playwright-report
+playwright/.cache
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Local scripts and tools
+scripts/
+tools/
+*.sh
+
+# Keep deployment scripts (negation)
+!docker-entrypoint.sh
+
+# Security scan artifacts
+.snyk
+.trivyignore
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Prisma development files (keep schema and migrations)
+prisma/*.db
+prisma/*.db-journal
